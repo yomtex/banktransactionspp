@@ -2,6 +2,7 @@
 
 import 'package:bankapp/utils/transactions.dart';
 import 'package:flutter/material.dart';
+import 'mypages.dart';
 
 class Dashboard extends StatefulWidget {
   final String username;
@@ -15,12 +16,16 @@ class _DashboardState extends State<Dashboard> {
   // form  controller
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
+  bool _isLoading = false;
+  bool _isShow = false;
+  bool _isBtnVisible = true;
+  String msg = "";
 
   List<Transaction> transactionData = [
-    Transaction("Transfer to user202", "Description 1", 230.0, "dr"),
-    Transaction("Received from user201", "Description 2", 150.0, "cr"),
-    Transaction("Transfer to user202", "Description 1", 230.0, "dr"),
-    Transaction("Received from user201", "Description 2", 150.0, "cr"),
+    Transaction("Transfer to user202", "Nov 10th, 12:28:40 ", 230.0, "dr"),
+    Transaction("Received from user201", "Nov 11th, 14:28:40 ", 150.0, "cr"),
+    Transaction("Transfer to user202", "Nov 12th, 15:28:40 ", 230.0, "dr"),
+    Transaction("Received from user201", "Nov 1th, 18:28:40 ", 150.0, "cr"),
     // Add more transactions as needed
   ];
 
@@ -32,9 +37,17 @@ class _DashboardState extends State<Dashboard> {
       appBar: AppBar(
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => Profile(
+                          username: widget.username,
+                        )),
+              );
+            },
             icon: Icon(
-              Icons.notifications,
+              Icons.settings,
               color: Colors.grey[700],
             ),
           ),
@@ -56,39 +69,168 @@ class _DashboardState extends State<Dashboard> {
         elevation: 0,
         backgroundColor: Colors.white,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(
-            icon: InkWell(
-              onTap: () {},
-              child: const Icon(Icons.home),
-            ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: InkWell(
-              onTap: () {},
-              child: const Icon(Icons.person_2_rounded),
-            ),
-            label: 'Profile',
-          ),
-          // Add more items as needed
-        ],
-        onTap: (int index) {
-          // Handle item selection here
-        },
-      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            mycard(width: MediaQuery.of(context).size.width),
+            mycard(width: MediaQuery.of(context).size.width, context: context),
             const SizedBox(
               height: 15,
             ),
-            sendMoney(
-                hint: "Enter username",
-                formkey: _formKey,
-                usernameController: _usernameController),
+            sendMoneyWidget(
+              hint: "Enter username",
+              formkey: _formKey,
+              usernameController: _usernameController,
+            ),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15.0, vertical: 5),
+                child: _isShow
+                    ? text(caption: msg, color: Colors.red)
+                    : const Text(""),
+              ),
+            ),
+            _isLoading
+                ? Container(
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 15.0, vertical: 5),
+                    decoration:
+                        BoxDecoration(borderRadius: BorderRadius.circular(15)),
+                    width: MediaQuery.of(context).size.width,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.grey[
+                          400], // Background color for the circular avatar
+                      radius: 25, // Adjust the radius as needed
+                      child: const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white), // Color for the progress indicator
+                        strokeWidth: 2, // Adjust the thickness of the indicator
+                      ),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Visibility(
+                        visible: _isBtnVisible,
+                        child: InkWell(
+                          onTap: () {
+                            var uname = _usernameController.text;
+                            // Regular expression to match letters only
+                            final RegExp lettersAndNumbers =
+                                RegExp(r"^[a-zA-Z]+[0-9]*$");
+                            if (uname.isEmpty) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username cannot be empty!!";
+                              });
+                            }
+                            // Check if the value starts with a number
+                            else if (int.tryParse(uname[0]) != null) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username cannot start with a number";
+                              });
+                            }
+                            // Check if the value contains special characters
+                            else if (!lettersAndNumbers.hasMatch(uname)) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username can only contain letters";
+                              });
+                            }
+                            // Check if the value is less than 6
+                            else if (uname.length < 6) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Enter a valid Username";
+                              });
+                            } else {
+                              setState(() {
+                                _isBtnVisible = false;
+                                _isLoading = true;
+                                _isShow = false;
+                              });
+                              sendOrRequest(uname, "Send");
+                            }
+                          },
+                          child: _isLoading
+                              ? const CircleAvatar(
+                                  backgroundColor: Colors
+                                      .blue, // Background color for the circular avatar
+                                  radius: 25, // Adjust the radius as needed
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors
+                                        .white), // Color for the progress indicator
+                                    strokeWidth:
+                                        2, // Adjust the thickness of the indicator
+                                  ),
+                                )
+                              : sendOrRequestBtnWidget(
+                                  cap: "Send", btncolor: Colors.blue[900]),
+                        ),
+                      ),
+                      Visibility(
+                        visible: _isBtnVisible,
+                        child: InkWell(
+                          onTap: () {
+                            var uname = _usernameController.text;
+                            // Regular expression to match letters only
+                            final RegExp lettersAndNumbers =
+                                RegExp(r"^[a-zA-Z]+[0-9]*$");
+                            if (uname.isEmpty) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username cannot be empty!!";
+                              });
+                            }
+                            // Check if the value starts with a number
+                            else if (int.tryParse(uname[0]) != null) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username cannot start with a number";
+                              });
+                            }
+                            // Check if the value contains special characters
+                            else if (!lettersAndNumbers.hasMatch(uname)) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Username can only contain letters";
+                              });
+                            }
+                            // Check if the value is less than 6
+                            else if (uname.length < 6) {
+                              setState(() {
+                                _isShow = true;
+                                msg = "Enter a valid Username";
+                              });
+                            } else {
+                              setState(() {
+                                _isLoading = true;
+                                _isShow = false;
+                              });
+                              sendOrRequest(uname, "Request");
+                            }
+                          },
+                          child: _isLoading
+                              ? const CircleAvatar(
+                                  backgroundColor: Colors
+                                      .blue, // Background color for the circular avatar
+                                  radius: 25, // Adjust the radius as needed
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors
+                                        .white), // Color for the progress indicator
+                                    strokeWidth:
+                                        2, // Adjust the thickness of the indicator
+                                  ),
+                                )
+                              : sendOrRequestBtnWidget(
+                                  cap: "Request", btncolor: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
             const SizedBox(
               height: 15,
             ),
@@ -97,6 +239,24 @@ class _DashboardState extends State<Dashboard> {
         ),
       ),
     );
+  }
+
+  // Method to validate username
+  sendOrRequest(username, transactionType) {
+    Future.delayed(const Duration(seconds: 5), () {
+      setState(() {
+        _isShow = false;
+      });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SendOrRequest(
+            transactionType: transactionType,
+            username: username,
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -227,14 +387,14 @@ void _showTransactionDetails(BuildContext context, Transaction transaction) {
 }
 
 // Form Widget(send,request)
-Widget sendMoney({hint, formkey, usernameController}) {
+Widget sendMoneyWidget({hint, formkey, usernameController}) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 15),
     child: Form(
       key: formkey,
       child: Column(
         children: [
-          TextField(
+          TextFormField(
             controller: usernameController,
             decoration: InputDecoration(
               hintText: hint,
@@ -246,40 +406,23 @@ Widget sendMoney({hint, formkey, usernameController}) {
                   const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
               enabledBorder: const OutlineInputBorder(
                 borderSide: BorderSide(color: Colors.grey),
-                // borderRadius: BorderRadius.circular(
-                //     20), // Set circular border radius here
               ),
               border: const OutlineInputBorder(
-                // borderRadius: BorderRadius.circular(
-                //     20), // Set circular border radius here
                 borderSide: BorderSide(color: Colors.grey),
               ),
             ),
           ),
           const SizedBox(
-            height: 15,
+            height: 0,
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                  onTap: () {},
-                  child: sendOrRequestBtn(
-                      cap: "Send", btncolor: Colors.blue[900])),
-              InkWell(
-                  onTap: () {},
-                  child: sendOrRequestBtn(
-                      cap: "Request", btncolor: Colors.blueAccent)),
-            ],
-          )
         ],
       ),
     ),
   );
 }
 
-// Send button Widget
-Widget sendOrRequestBtn({cap, btncolor}) {
+// Send and request button Widget
+Widget sendOrRequestBtnWidget({cap, btncolor}) {
   return Container(
     margin: const EdgeInsets.all(20),
     decoration:
@@ -308,7 +451,7 @@ Widget text({color, size, fontweight, caption}) {
 }
 
 // Card Widget which hold the available balance, add money and transaction history
-Widget mycard({width}) {
+Widget mycard({width, context}) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 15),
     child: Container(
@@ -342,10 +485,20 @@ Widget mycard({width}) {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                text(
-                    caption: "Transaction history",
-                    size: 13.0,
-                    color: Colors.white),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TransactionHistory(),
+                      ),
+                    );
+                  },
+                  child: text(
+                      caption: "Transaction history",
+                      size: 13.0,
+                      color: Colors.white),
+                ),
                 Container(
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
