@@ -14,6 +14,7 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailcontroller = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  AuthController authController = AuthController();
   // Navigation
   void _onInkWellTapped(BuildContext context, mylocation) {
     Navigator.pushReplacement(
@@ -89,11 +90,21 @@ class _LoginPageState extends State<LoginPage> {
                     child: MaterialButton(
                       minWidth: double.infinity,
                       height: 60,
-                      onPressed: () {
-                        // ignore: avoid_print
-                        AuthController auth = new AuthController();
-                        print(auth.authlogin(
-                            _emailcontroller.text, _passwordController.text));
+                      onPressed: () async {
+                        String email = _emailcontroller.text.trim();
+                        String password = _passwordController.text.trim();
+
+                        try {
+                          String result =
+                              await authController.authlogin(email, password);
+                          // Print the result
+                          print(result);
+                          // Navigate to the dashboard or perform other actions on successful login
+                        } catch (e) {
+                          print("Error: $e");
+                          // Handle login failure, e.g., show an error message
+                        }
+
                         // _onInkWellTapped(context, const Dashboard());
                       },
                       color: const Color(0xff0095FF),

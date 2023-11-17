@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'mypages.dart';
 
 class Dashboard extends StatefulWidget {
-  final String username;
-  const Dashboard({super.key, required this.username});
+  const Dashboard({super.key});
 
   @override
   State<Dashboard> createState() => _DashboardState();
@@ -40,10 +39,7 @@ class _DashboardState extends State<Dashboard> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => Profile(
-                          username: widget.username,
-                        )),
+                MaterialPageRoute(builder: (context) => const Profile()),
               );
             },
             icon: Icon(
@@ -60,7 +56,7 @@ class _DashboardState extends State<Dashboard> {
               style: TextStyle(color: Colors.black),
             ),
             Text(
-              widget.username,
+              "Yom",
               style: const TextStyle(
                   color: Colors.black, fontWeight: FontWeight.bold),
             ),
