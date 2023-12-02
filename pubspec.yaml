@@ -41,6 +41,7 @@ dependencies:
   geocoding: ^2.1.1
   baseflow_plugin_template: ^2.1.2
   connectivity_plus: ^5.0.1
+  webview_flutter: ^4.4.2
   
 
 dev_dependencies:

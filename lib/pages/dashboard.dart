@@ -1,7 +1,13 @@
 // ignore_for_file: avoid_print
 
+import 'package:bankapp/models/auth.dart';
+import 'package:bankapp/pages/add_money.dart';
+import 'package:bankapp/pages/login.dart';
 import 'package:bankapp/utils/transactions.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'mypages.dart';
 
 class Dashboard extends StatefulWidget {
@@ -19,6 +25,66 @@ class _DashboardState extends State<Dashboard> {
   bool _isShow = false;
   bool _isBtnVisible = true;
   String msg = "";
+  Map mapResponse = {};
+  bool isNull = false;
+  bool _pageLoading = true;
+
+  //Getting current user details
+  Future<void> getData() async {
+    try {
+      final sharedPreferences = await SharedPreferences.getInstance();
+      final token = sharedPreferences.getString("oops_token");
+
+      if (token == null) {
+        failedToAuth();
+        return;
+      }
+
+      final endpoint = "user";
+      final url = Uri.parse('${AuthController.baseUrl}$endpoint');
+
+      final response = await http.get(url, headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token'
+      });
+
+      if (response.statusCode == 401) {
+        // User logged out or session expired
+        sharedPreferences.remove("oops_token");
+        failedToAuth();
+        return;
+      }
+
+      setState(() {
+        _pageLoading = false;
+      });
+
+      final data = json.decode(response.body)["data"];
+
+      if (mapResponse != null) {
+        setState(() {
+          mapResponse = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("No connection");
+    }
+  }
+
+// Once it fails to authenticate
+  void failedToAuth() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (BuildContext context) => const LoginPage()),
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  @override
+  void initState() {
+    getData();
+    super.initState();
+  }
 
   List<Transaction> transactionData = [
     Transaction("Transfer to user202", "Nov 10th, 12:28:40 ", 230.0, "dr"),
@@ -31,210 +97,234 @@ class _DashboardState extends State<Dashboard> {
   String? username;
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const Profile()),
-              );
-            },
-            icon: Icon(
-              Icons.settings,
-              color: Colors.grey[700],
+    return _pageLoading
+        ? Builder(builder: (context) {
+            return const Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(
+                  child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Colors.blue),
+              )),
+            );
+          })
+        : Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              actions: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Profile()),
+                    );
+                  },
+                  icon: Icon(
+                    Icons.settings,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+              // leading: null,
+              title: Row(
+                children: [
+                  const Text(
+                    "Hello, ",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  Text(
+                    mapResponse["firstname"].toString(),
+                    style: const TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              elevation: 0,
+              backgroundColor: Colors.white,
             ),
-          ),
-        ],
-        // leading: null,
-        title: Row(
-          children: [
-            const Text(
-              "Hello, ",
-              style: TextStyle(color: Colors.black),
-            ),
-            Text(
-              "Yom",
-              style: const TextStyle(
-                  color: Colors.black, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        elevation: 0,
-        backgroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            mycard(width: MediaQuery.of(context).size.width, context: context),
-            const SizedBox(
-              height: 15,
-            ),
-            sendMoneyWidget(
-              hint: "Enter username",
-              formkey: _formKey,
-              usernameController: _usernameController,
-            ),
-            Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15.0, vertical: 5),
-                child: _isShow
-                    ? text(caption: msg, color: Colors.red)
-                    : const Text(""),
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  mycard(
+                    width: MediaQuery.of(context).size.width,
+                    context: context,
+                    balance: mapResponse["wallet_balance"].toString(),
+                  ),
+                  const SizedBox(
+                    height: 15,
+                  ),
+                  sendMoneyWidget(
+                    hint: "Enter username",
+                    formkey: _formKey,
+                    usernameController: _usernameController,
+                  ),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15.0, vertical: 5),
+                      child: _isShow
+                          ? text(caption: msg, color: Colors.red)
+                          : const Text(""),
+                    ),
+                  ),
+                  _isLoading
+                      ? Container(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 15.0, vertical: 5),
+                          decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(15)),
+                          width: MediaQuery.of(context).size.width,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.grey[
+                                400], // Background color for the circular avatar
+                            radius: 25, // Adjust the radius as needed
+                            child: const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors
+                                  .white), // Color for the progress indicator
+                              strokeWidth:
+                                  2, // Adjust the thickness of the indicator
+                            ),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Visibility(
+                              visible: _isBtnVisible,
+                              child: InkWell(
+                                onTap: () {
+                                  var uname = _usernameController.text;
+                                  // Regular expression to match letters only
+                                  final RegExp lettersAndNumbers =
+                                      RegExp(r"^[a-zA-Z]+[0-9]*$");
+                                  if (uname.isEmpty) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Username cannot be empty!!";
+                                    });
+                                  }
+                                  // Check if the value starts with a number
+                                  else if (int.tryParse(uname[0]) != null) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg =
+                                          "Username cannot start with a number";
+                                    });
+                                  }
+                                  // Check if the value contains special characters
+                                  else if (!lettersAndNumbers.hasMatch(uname)) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Username can only contain letters";
+                                    });
+                                  }
+                                  // Check if the value is less than 6
+                                  else if (uname.length < 6) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Enter a valid Username";
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _isBtnVisible = false;
+                                      _isLoading = true;
+                                      _isShow = false;
+                                    });
+                                    sendOrRequest(uname, "Send");
+                                  }
+                                },
+                                child: _isLoading
+                                    ? const CircleAvatar(
+                                        backgroundColor: Colors
+                                            .blue, // Background color for the circular avatar
+                                        radius:
+                                            25, // Adjust the radius as needed
+                                        child: CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<
+                                                  Color>(
+                                              Colors
+                                                  .white), // Color for the progress indicator
+                                          strokeWidth:
+                                              2, // Adjust the thickness of the indicator
+                                        ),
+                                      )
+                                    : sendOrRequestBtnWidget(
+                                        cap: "Send",
+                                        btncolor: Colors.blue[900]),
+                              ),
+                            ),
+                            Visibility(
+                              visible: _isBtnVisible,
+                              child: InkWell(
+                                onTap: () {
+                                  var uname = _usernameController.text;
+                                  // Regular expression to match letters only
+                                  final RegExp lettersAndNumbers =
+                                      RegExp(r"^[a-zA-Z]+[0-9]*$");
+                                  if (uname.isEmpty) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Username cannot be empty!!";
+                                    });
+                                  }
+                                  // Check if the value starts with a number
+                                  else if (int.tryParse(uname[0]) != null) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg =
+                                          "Username cannot start with a number";
+                                    });
+                                  }
+                                  // Check if the value contains special characters
+                                  else if (!lettersAndNumbers.hasMatch(uname)) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Username can only contain letters";
+                                    });
+                                  }
+                                  // Check if the value is less than 6
+                                  else if (uname.length < 6) {
+                                    setState(() {
+                                      _isShow = true;
+                                      msg = "Enter a valid Username";
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _isLoading = true;
+                                      _isShow = false;
+                                    });
+                                    sendOrRequest(uname, "Request");
+                                  }
+                                },
+                                child: _isLoading
+                                    ? const CircleAvatar(
+                                        backgroundColor: Colors
+                                            .blue, // Background color for the circular avatar
+                                        radius:
+                                            25, // Adjust the radius as needed
+                                        child: CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<
+                                                  Color>(
+                                              Colors
+                                                  .white), // Color for the progress indicator
+                                          strokeWidth:
+                                              2, // Adjust the thickness of the indicator
+                                        ),
+                                      )
+                                    : sendOrRequestBtnWidget(
+                                        cap: "Request", btncolor: Colors.blue),
+                              ),
+                            ),
+                          ],
+                        ),
+                  const SizedBox(
+                    height: 15,
+                  ),
+                  recentTransaction(transactionData)
+                ],
               ),
             ),
-            _isLoading
-                ? Container(
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 15.0, vertical: 5),
-                    decoration:
-                        BoxDecoration(borderRadius: BorderRadius.circular(15)),
-                    width: MediaQuery.of(context).size.width,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.grey[
-                          400], // Background color for the circular avatar
-                      radius: 25, // Adjust the radius as needed
-                      child: const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white), // Color for the progress indicator
-                        strokeWidth: 2, // Adjust the thickness of the indicator
-                      ),
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Visibility(
-                        visible: _isBtnVisible,
-                        child: InkWell(
-                          onTap: () {
-                            var uname = _usernameController.text;
-                            // Regular expression to match letters only
-                            final RegExp lettersAndNumbers =
-                                RegExp(r"^[a-zA-Z]+[0-9]*$");
-                            if (uname.isEmpty) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username cannot be empty!!";
-                              });
-                            }
-                            // Check if the value starts with a number
-                            else if (int.tryParse(uname[0]) != null) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username cannot start with a number";
-                              });
-                            }
-                            // Check if the value contains special characters
-                            else if (!lettersAndNumbers.hasMatch(uname)) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username can only contain letters";
-                              });
-                            }
-                            // Check if the value is less than 6
-                            else if (uname.length < 6) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Enter a valid Username";
-                              });
-                            } else {
-                              setState(() {
-                                _isBtnVisible = false;
-                                _isLoading = true;
-                                _isShow = false;
-                              });
-                              sendOrRequest(uname, "Send");
-                            }
-                          },
-                          child: _isLoading
-                              ? const CircleAvatar(
-                                  backgroundColor: Colors
-                                      .blue, // Background color for the circular avatar
-                                  radius: 25, // Adjust the radius as needed
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors
-                                        .white), // Color for the progress indicator
-                                    strokeWidth:
-                                        2, // Adjust the thickness of the indicator
-                                  ),
-                                )
-                              : sendOrRequestBtnWidget(
-                                  cap: "Send", btncolor: Colors.blue[900]),
-                        ),
-                      ),
-                      Visibility(
-                        visible: _isBtnVisible,
-                        child: InkWell(
-                          onTap: () {
-                            var uname = _usernameController.text;
-                            // Regular expression to match letters only
-                            final RegExp lettersAndNumbers =
-                                RegExp(r"^[a-zA-Z]+[0-9]*$");
-                            if (uname.isEmpty) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username cannot be empty!!";
-                              });
-                            }
-                            // Check if the value starts with a number
-                            else if (int.tryParse(uname[0]) != null) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username cannot start with a number";
-                              });
-                            }
-                            // Check if the value contains special characters
-                            else if (!lettersAndNumbers.hasMatch(uname)) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Username can only contain letters";
-                              });
-                            }
-                            // Check if the value is less than 6
-                            else if (uname.length < 6) {
-                              setState(() {
-                                _isShow = true;
-                                msg = "Enter a valid Username";
-                              });
-                            } else {
-                              setState(() {
-                                _isLoading = true;
-                                _isShow = false;
-                              });
-                              sendOrRequest(uname, "Request");
-                            }
-                          },
-                          child: _isLoading
-                              ? const CircleAvatar(
-                                  backgroundColor: Colors
-                                      .blue, // Background color for the circular avatar
-                                  radius: 25, // Adjust the radius as needed
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors
-                                        .white), // Color for the progress indicator
-                                    strokeWidth:
-                                        2, // Adjust the thickness of the indicator
-                                  ),
-                                )
-                              : sendOrRequestBtnWidget(
-                                  cap: "Request", btncolor: Colors.blue),
-                        ),
-                      ),
-                    ],
-                  ),
-            const SizedBox(
-              height: 15,
-            ),
-            recentTransaction(transactionData)
-          ],
-        ),
-      ),
-    );
+          );
   }
 
   // Method to validate username
@@ -447,7 +537,7 @@ Widget text({color, size, fontweight, caption}) {
 }
 
 // Card Widget which hold the available balance, add money and transaction history
-Widget mycard({width, context}) {
+Widget mycard({width, context, balance}) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 15),
     child: Container(
@@ -474,7 +564,7 @@ Widget mycard({width, context}) {
                 const SizedBox(
                   height: 10,
                 ),
-                text(caption: "\$130,000", size: 15.0, color: Colors.white),
+                text(caption: "\$$balance", size: 15.0, color: Colors.white),
               ],
             ),
             Column(
@@ -486,7 +576,7 @@ Widget mycard({width, context}) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TransactionHistory(),
+                        builder: (context) => const TransactionHistory(),
                       ),
                     );
                   },
@@ -507,7 +597,16 @@ Widget mycard({width, context}) {
                           Icons.add,
                           size: 13.0,
                         ),
-                        text(caption: "Add money", size: 13.0)
+                        InkWell(
+                            onTap: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AddMoney(),
+                                ),
+                              );
+                            },
+                            child: text(caption: "Add money", size: 13.0))
                       ],
                     ),
                   ),

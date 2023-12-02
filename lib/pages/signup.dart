@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:baseflow_plugin_template/baseflow_plugin_template.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -336,34 +337,76 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   // get location
-  Future<void> _getLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        _getLocationWithRetry();
-        return;
-      }
-    }
 
-    // Permission granted, get location
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-    setState(() {
-      _currentPosition = position;
-      _latitude = _currentPosition.latitude;
-      _longtitude = _currentPosition.longitude;
-      placemarkFromCoordinates(_latitude!, _longtitude!).then((placemarks) {
-        if (placemarks.isNotEmpty) {
-          Placemark firstplacemarks = placemarks[0];
-          country = firstplacemarks.country ?? "Unknown";
-          iso_code = firstplacemarks.isoCountryCode ?? "Unknown Iso";
-          print(country);
+  Future<void> _getLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        // Only request permission if no other permission request is ongoing
+        if (!(await Geolocator.isLocationServiceEnabled())) {
+          // Location services are disabled, handle accordingly
+          print('Location services are disabled');
+          return;
         }
+
+        // Request location permission
+        permission = await Geolocator.requestPermission();
+
+        if (permission != LocationPermission.whileInUse &&
+            permission != LocationPermission.always) {
+          // User denied location permission, handle accordingly
+          print('User denied location permission');
+          setState(() {
+            _clearCacheAndNavigateToLogin(context);
+          });
+          return;
+        }
+      }
+
+      // Permission granted, get location
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _currentPosition = position;
+        _latitude = _currentPosition.latitude;
+        _longtitude = _currentPosition.longitude;
+
+        placemarkFromCoordinates(_latitude!, _longtitude!).then((placemarks) {
+          if (placemarks.isNotEmpty) {
+            Placemark firstPlacemark = placemarks[0];
+            country = firstPlacemark.country ?? "Unknown";
+            iso_code = firstPlacemark.isoCountryCode ?? "Unknown Iso";
+            print(country);
+          }
+        });
+
+        print(_latitude);
       });
-      print(_latitude);
-    });
-    // print("Location: ${position.latitude}, ${position.longitude}");
+
+      // Save location data to preferences (if needed)
+      // ...
+
+      // Continue with the rest of your location handling code
+    } catch (e) {
+      print('Error getting location: $e');
+      // Handle the error as needed, e.g., show an error message to the user
+    }
+  }
+
+  Future<void> _clearCacheAndNavigateToLogin(BuildContext context) async {
+    // Clear shared preferences or perform any other necessary cleanup
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // Reset any state or variables as needed
+    // ...
+
+    // Navigate back to the login screen
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (context) => LoginPage()));
   }
 }
 

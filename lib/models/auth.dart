@@ -59,8 +59,8 @@ class AuthController {
 
       // Save user data to SharedPreferences
       // saveUserDataToPrefs(jsonResponse);
-
-      return "Login Successful";
+      await saveUserDataToPrefs(jsonResponse);
+      return jsonResponse["access_token"];
     } else {
       // Login failed
       print("Login failed with status: ${response.statusCode}");
@@ -71,14 +71,14 @@ class AuthController {
 
   Future<void> saveUserDataToPrefs(Map<String, dynamic> userData) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('token', userData['token']);
+    prefs.setString('oops_token', userData['access_token']);
     // Add any other user data you want to save
   }
 
   Future<Map<String, dynamic>> getUserDataFromPrefs() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     Map<String, dynamic> userData = {
-      'token': prefs.getString('token') ?? '',
+      'token': prefs.getString('oops_token') ?? '',
       // Add any other user data you want to retrieve
     };
     return userData;
@@ -86,7 +86,7 @@ class AuthController {
 
   Future<void> logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove('token');
+    prefs.remove('oops_token');
     // Add removal of any other user data as needed
   }
 }
